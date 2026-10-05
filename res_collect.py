@@ -97,7 +97,7 @@ class ProcSampler:
         self._last_cpu = self._read_cpu()
         self._last_net = self._read_net()
         self._last_hist = time.time()
-        self._scan_procs()
+        self._scan_procs(0.2)            # primes the pid map; output unused
 
     # ---- cpu ---------------------------------------------------------------
     @staticmethod
@@ -139,17 +139,17 @@ class ProcSampler:
         return out
 
     # ---- processes ---------------------------------------------------------
-    def _scan_procs(self):
+    def _scan_procs(self, interval):
         """Read jiffies + rss for the tracked pid set, update the map.
 
-        Tracked set = pids seen last tick (top 400 by jiffies, so the map
-        stays small even on big machines) + up to 256 new pids. CPU% is a
-        per-tick delta (convention: 100% = one full core).
+        Tracked set = every pid seen last tick + up to 256 new pids per
+        tick. CPU% is a per-tick delta over `interval` seconds (convention:
+        100% = one full core); `interval` MUST come from the caller's tick
+        spacing -- deriving it here (now - self._last_hist) reads a value
+        the caller has already refreshed, flooring it to 0.2s and inflating
+        every CPU% by ~25x.
         """
-        now = time.time()
-        interval = max(0.2, now - self._last_hist)
         hz = os.sysconf("SC_CLK_TCK")
-        page = os.sysconf("SC_PAGE_SIZE")
         new = {}
         keep = set(self._last_pid.keys())
         try:
@@ -179,25 +179,22 @@ class ProcSampler:
                 new[pid] = (total, name, rss)
             except Exception:
                 continue
+        # sanity budget: all cores together can spend at most
+        # hz*interval*ncores jiffies in one tick; anything beyond that
+        # (pid reuse across ticks, counter weirdness) is clamped to 100%
+        budget = hz * interval * (os.cpu_count() or 1)
         out = {}
-        prev_total = None
-        cur, _per = self._read_cpu()
-        if self._last_cpu and cur and self._last_cpu[0]:
-            prev_total = sum(self._last_cpu[0])
-            cur_total = sum(cur)
-            delta_t = cur_total - prev_total
-            if delta_t > 0:
-                for pid, (total, name, rss) in new.items():
-                    p = self._last_pid.get(pid)
-                    if p and total >= p[0]:
-                        dproc = total - p[0]
-                        if dproc <= delta_t:
-                            cpu = dproc / (hz * interval) * 100.0
-                        else:
-                            cpu = 100.0
-                        out[pid] = {"name": name, "pid": pid,
-                                     "cpu": round(cpu, 1),
-                                     "memMB": round(rss, 1)}
+        for pid, (total, name, rss) in new.items():
+            p = self._last_pid.get(pid)
+            if p and total >= p[0]:
+                dproc = total - p[0]
+                if dproc <= budget:
+                    cpu = dproc / (hz * interval) * 100.0
+                else:
+                    cpu = 100.0
+                out[pid] = {"name": name, "pid": pid,
+                            "cpu": round(cpu, 1),
+                            "memMB": round(rss, 1)}
         self._last_pid = new
         return out
 
@@ -303,7 +300,7 @@ class ProcSampler:
         self.hist_down.append(round(down_k, 1))
         self.hist_up.append(round(up_k, 1))
 
-        procs = list(self._scan_procs().values())
+        procs = list(self._scan_procs(interval).values())
         procs.sort(key=lambda p: (-p["cpu"], -p["memMB"]))
         procs = [p for p in procs[:PROC_MAX] if p["name"] != "swapper"]
 
@@ -407,9 +404,9 @@ class PsutilSampler:
         if getattr(self, "_last_net", None):
             lts, lrx, ltx = self._last_net
             interval = max(0.2, time.time() - lts)
-            down_k = max(0.0, net.bytes_received - lrx) / interval / 1024.0
+            down_k = max(0.0, net.bytes_recv - lrx) / interval / 1024.0
             up_k = max(0.0, net.bytes_sent - ltx) / interval / 1024.0
-        self._last_net = (time.time(), net.bytes_received, net.bytes_sent)
+        self._last_net = (time.time(), net.bytes_recv, net.bytes_sent)
         self.hist_down.append(round(down_k, 1))
         self.hist_up.append(round(up_k, 1))
 
@@ -456,7 +453,7 @@ class PsutilSampler:
                 "usedGB": round(vm.total * vm.percent / 100.0 / 2 ** 30, 1),
                 "totalGB": round(vm.total / 2 ** 30, 1),
                 "pct": round(vm.percent, 1),
-            "swapUsedGB": round((sw.total - sw.used) / 2 ** 30, 1) if sw else 0.0,
+            "swapUsedGB": round(sw.used / 2 ** 30, 1) if sw else 0.0,
             "swapTotalGB": round(sw.total / 2 ** 30, 1) if sw else 0.0,
                 "swapPct": round(sw.percent, 1) if sw else 0.0,
             },

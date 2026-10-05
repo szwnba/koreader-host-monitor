@@ -24,6 +24,7 @@ The remote-agent piece is optional: without it the bridge simply monitors
 the machine it runs on. `res_report.py` is the agent you point at this
 bridge from another host.
 """
+import hmac
 import json
 import os
 import sys
@@ -53,12 +54,17 @@ DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 PORT = int(os.environ.get("RES_PORT", "8865"))
 TOKEN = os.environ.get("RES_TOKEN", "")
 LOGPATH = os.path.join(DATA_DIR, "res_bridge.log")
+LOG_MAX_BYTES = 512 * 1024    # rotate to res_bridge.log.1 beyond this
 REMOTE_STALE_SEC = 300          # a pushed report older than this = "STALE"
 REMOTE_MAX_HOSTS = 8
+REPORT_MAX_BYTES = 1024 * 1024  # reject absurd POST /report bodies
 
 
 def _log(msg):
     try:
+        if (os.path.exists(LOGPATH)
+                and os.path.getsize(LOGPATH) > LOG_MAX_BYTES):
+            os.replace(LOGPATH, LOGPATH + ".1")
         with open(LOGPATH, "a", encoding="utf-8") as f:
             f.write("%s %s\n" % (time.strftime("%Y-%m-%d %H:%M:%S"), msg))
     except Exception:
@@ -140,7 +146,7 @@ class Handler(BaseHTTPRequestHandler):
         if not TOKEN:
             return True
         ah = self.headers.get("Authorization", "")
-        return ah == ("Bearer " + TOKEN)
+        return hmac.compare_digest(ah, "Bearer " + TOKEN)
 
     def do_GET(self):
         u = urlparse(self.path)
@@ -192,6 +198,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(401, {"error": "unauthorized"})
             try:
                 ln = int(self.headers.get("Content-Length", "0") or "0")
+                if ln > REPORT_MAX_BYTES:
+                    return self._send(413, {"error": "payload too large"})
                 raw = self.rfile.read(ln) if ln else b"{}"
                 payload = json.loads(raw or b"{}")
             except Exception as e:

@@ -762,9 +762,10 @@ function HostMonitor:_showImage(auto, quiet)
     local h = Device.screen:getHeight()
     -- NEVER reuse a fixed file name. KOReader's image renderer caches the
     -- decoded bitmap under a hash of (path, width, height) -- it does NOT look
-    -- at the file's mtime. So downloading fresh bytes into wb_cover.png over
-    -- and over kept showing the FIRST picture ever fetched (the cover looked
-    -- frozen at one timestamp). A unique path per fetch busts that cache.
+    -- at the file's mtime. So downloading fresh bytes into one fixed path
+    -- (upstream's old wb_cover.png) over and over kept showing the FIRST
+    -- picture ever fetched (the cover looked frozen at one timestamp).
+    -- A unique path per fetch busts that cache.
     local path = self:_newCoverPath()
     -- Download into a SCRATCH file first: if the transfer dies halfway we must
     -- not have truncated the cached PNG we are currently displaying.

@@ -57,6 +57,9 @@ def main():
 
     sampler = res_collect.make_sampler()
     sampler.sample()                       # prime the delta state
+    # without this the first sample's CPU%/net deltas divide a ~zero-second
+    # window (the very bug that made `--once` cron pushes read all zeros)
+    time.sleep(2)
 
     fails = 0
     while True:

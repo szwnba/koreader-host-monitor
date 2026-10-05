@@ -34,8 +34,26 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, "host_monitor.koplugin")
-MOUNT = os.environ.get("KINDLE_MOUNT") or "F:/"
-DST = os.path.join(MOUNT, "koreader", "plugins", "host_monitor.koplugin")
+
+
+def _default_mount():
+    m = os.environ.get("KINDLE_MOUNT")
+    if m:
+        return m
+    if os.name == "nt":
+        return "F:/"
+    # Linux: probe the usual desktop-automount spots for a Kindle
+    import glob
+    for pat in ("/media/*/Kindle", "/run/media/*/Kindle", "/media/*/kindle"):
+        hits = sorted(glob.glob(pat))
+        if hits:
+            return hits[0]
+    return ""
+
+
+MOUNT = _default_mount()
+DST = os.path.join(MOUNT, "koreader", "plugins", "host_monitor.koplugin") \
+    if MOUNT else ""
 FILES = ["main.lua", "_meta.lua", "config.txt"]
 
 
@@ -67,6 +85,12 @@ def main():
     deadline = time.time() + 1800               # 30 min
     if not os.path.isdir(SRC):
         print("ERROR: source plugin dir not found:", SRC, flush=True)
+        return 1
+    if not MOUNT:
+        print("ERROR: Kindle mount point not found automatically.\n"
+              "Plug the Kindle in (USB), or set it explicitly, e.g.:\n"
+              "  KINDLE_MOUNT=/media/youruser/Kindle python3 deploy_to_kindle.py",
+              flush=True)
         return 1
     print("mount:", MOUNT, "-> dst:", DST, flush=True)
     while True:
