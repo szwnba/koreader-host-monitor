@@ -1,6 +1,6 @@
 # Host Monitor for Kindle（墨水屏主机资源看板）
 
-把 **本机（或远端机器）的 CPU / 内存 / 磁盘 / 网络 / TOP 进程**，实时投到
+把 **本机（或远端机器）的 CPU / 内存 / 磁盘 / TOP 内存进程**，实时投到
 **Kindle / KOReader 墨水屏**上，做成一个**常驻看板**。
 
 这是 [RC-APC/workbuddy_monitor.koplugin](https://github.com/RC-APC/workbuddy_monitor.koplugin)
@@ -17,8 +17,8 @@
 
 - **常驻看板**：Kindle 上常驻显示，每 **3 分钟**自动刷新。
 - **指标**：CPU 总占用 + 每核柱状图 + load1/5/15（+ 温度，若内核暴露）；
-  内存/Swap 分段条；磁盘各分区（最多 4 行）；网络上下行速率 + 60 点下行
-  迷你走势；TOP 5 进程（CPU% + 内存 MB）；运行时长。
+  内存/Swap 分段条；磁盘各分区（最多 4 行）；TOP 10 内存进程
+  （CPU% + 内存 MB，按内存降序）；运行时长。
 - **双配色**：`theme=dark` 黑底白字 / `theme=light` 白底黑字，均为墨水屏安全灰度。
 - **阈值告警条**：内存 ≥90%、磁盘 ≥90%、CPU ≥95%、Swap ≥50%、
   load1 ≥ 2×核数，任一命中就在封面顶部画全宽反色告警条（和原版「登录失效」

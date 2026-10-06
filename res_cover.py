@@ -279,20 +279,6 @@ def _sec_disk(d, x0, xr, y, s, st, P):
     return y
 
 
-def _sec_net(d, x0, xr, y, s, st, P):
-    net = st.get("net") or {}
-    y = _section_label(d, x0, y, "NET", P, s)
-    _text(d, (x0, y), "DOWN %s KB/s     UP %s KB/s"
-          % (net.get("downKbps", 0), net.get("upKbps", 0)),
-          int(22 * s), P["LGRAY"], anchor="lt")
-    y += int(36 * s)
-    hist = net.get("hist_down") or []
-    if hist:
-        _spark(d, x0, y, xr - x0, int(52 * s), hist, P, n=60)
-        y += int(52 * s + 26 * s)
-    return y
-
-
 def _sec_procs(d, x0, xr, y, s, st, P):
     procs = st.get("procs") or []
     y = _section_label(d, x0, y, "TOP MEM", P, s)
@@ -303,7 +289,7 @@ def _sec_procs(d, x0, xr, y, s, st, P):
           P["MGRAY"], anchor="lm")
     _text(d, (xr - int(130 * s), y - int(14 * s)), "MEM", int(18 * s),
           P["MGRAY"], anchor="lm")
-    for p in procs[:5]:
+    for p in procs[:10]:
         name = str(p.get("name", "?"))
         # clip the name to the name column so it can never run into the
         # CPU value column (measured, font-agnostic)
@@ -406,14 +392,12 @@ def render_res_cover(status, w=1080, h=1440, mono=True, theme="dark",
                fill=P["INK"] + (255,), anchor="lm")
         y = ay + int(44 * s) + int(14 * s)
 
-    # ---- sections; on a short screen the NET sparkline and TOP block are the
-    # ---- first things dropped, never the gauges ------------------------------
+    # ---- sections; on a short screen the TOP MEM block is dropped first,
+    # ---- never the gauges ----------------------------------------------------
     y = _sec_cpu(d, x0, xr, y, s, status, P)
     y = _sec_mem(d, x0, xr, y, s, status, P)
     y = _sec_disk(d, x0, xr, y, s, status, P)
-    if y + int(140 * s) < bottom_limit:
-        y = _sec_net(d, x0, xr, y, s, status, P)
-    if y + int(200 * s) < bottom_limit:
+    if y + int(430 * s) < bottom_limit:
         y = _sec_procs(d, x0, xr, y, s, status, P)
 
     # ---- footer ----------------------------------------------------------------
@@ -483,9 +467,14 @@ def sample_status():
             {"name": "chrome", "pid": 2211, "cpu": 23.5, "memMB": 1450.2},
             {"name": "code", "pid": 1180, "cpu": 12.1, "memMB": 980.4},
             {"name": "docker", "pid": 445, "cpu": 6.8, "memMB": 512.0},
+            {"name": "gnome-shell", "pid": 3001, "cpu": 3.1, "memMB": 156.3},
             {"name": "python3", "pid": 77, "cpu": 2.2, "memMB": 120.6},
+            {"name": "Xorg", "pid": 910, "cpu": 1.4, "memMB": 98.7},
             {"name": "xdg-desktop-portal", "pid": 551, "cpu": 0.4,
              "memMB": 38.1},
+            {"name": "pulseaudio", "pid": 812, "cpu": 0.3, "memMB": 32.1},
+            {"name": "systemd", "pid": 1, "cpu": 0.1, "memMB": 12.4},
+            {"name": "kworker/0:1", "pid": 14, "cpu": 0.1, "memMB": 0.1},
         ],
         "alarms": [],
     }

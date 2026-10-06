@@ -45,7 +45,7 @@ except Exception:
 
 HIST_LEN = 60          # sparkline history kept in memory (one sample per tick)
 DISK_MAX = 4           # disk rows shown (renderer cap)
-PROC_MAX = 5           # top processes shown
+PROC_MAX = 10          # top-mem processes shown
 DISK_FS = ("ext4", "ext3", "xfs", "btrfs", "zfs", "apfs", "ntfs", "ntfs3",
            "vfat", "exfat", "f2fs", "jfs", "reiserfs", "cifs", "fuse.")
 NET_SKIP = ("lo", "docker", "veth", "br-", "cni", "tap", "tun", "virbr", "ltx")

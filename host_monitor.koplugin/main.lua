@@ -625,15 +625,11 @@ function HostMonitor:buildBoard(data, err)
             f1(d.pct)), 16)
     end
     add("", 4)
-    local net = (data and data.net) or {}
-    add(string.format("NET down %s / up %s KB/s",
-        f1(net.downKbps), f1(net.upKbps)), 16)
-    add("", 4)
     local procs = (data and data.procs) or {}
     if #procs > 0 then
         add("TOP MEM:", 16)
         for i, p in ipairs(procs) do
-            if i > 3 then break end
+            if i > 10 then break end
             local nm = tostring(p.name or "?")
             if #nm > 24 then nm = nm:sub(1, 23) .. ".." end
             add(string.format("  %-24s %s%%  %sM",
