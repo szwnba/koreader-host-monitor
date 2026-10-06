@@ -301,7 +301,7 @@ def _sec_procs(d, x0, xr, y, s, st, P):
         _text(d, (x0, y), name, int(22 * s), P["LGRAY"], anchor="lt")
         _text(d, (x0 + int(170 * s), y), "%5s" % p.get("cpu", 0),
               int(20 * s), P["WHITE"], anchor="lt")
-        _text(d, (xr - int(130 * s), y), "%8s" % p.get("memMB", 0),
+        _text(d, (xr - int(130 * s), y), "%9s" % ("%sM" % p.get("memMB", 0)),
               int(20 * s), P["WHITE"], anchor="lt")
         y += int(36 * s)
     return y
