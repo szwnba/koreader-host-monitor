@@ -301,7 +301,7 @@ class ProcSampler:
         self.hist_up.append(round(up_k, 1))
 
         procs = list(self._scan_procs(interval).values())
-        procs.sort(key=lambda p: (-p["cpu"], -p["memMB"]))
+        procs.sort(key=lambda p: (-p["memMB"], -p["cpu"]))
         procs = [p for p in procs[:PROC_MAX] if p["name"] != "swapper"]
 
         try:
@@ -426,7 +426,7 @@ class PsutilSampler:
                                            or 0.0, 1)})
             except Exception:
                 continue
-        top.sort(key=lambda p: (-p["cpu"], -p["memMB"]))
+        top.sort(key=lambda p: (-p["memMB"], -p["cpu"]))
         top = [p for p in top[:PROC_MAX] if p["name"] not in ("swapper",)]
 
         try:

@@ -295,7 +295,7 @@ def _sec_net(d, x0, xr, y, s, st, P):
 
 def _sec_procs(d, x0, xr, y, s, st, P):
     procs = st.get("procs") or []
-    y = _section_label(d, x0, y, "TOP PROCESSES", P, s)
+    y = _section_label(d, x0, y, "TOP MEM", P, s)
     if not procs:
         _text(d, (x0, y), "- none -", int(22 * s), P["MGRAY"])
         return y + int(34 * s)

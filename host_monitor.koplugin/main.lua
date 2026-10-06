@@ -631,7 +631,7 @@ function HostMonitor:buildBoard(data, err)
     add("", 4)
     local procs = (data and data.procs) or {}
     if #procs > 0 then
-        add("TOP:", 16)
+        add("TOP MEM:", 16)
         for i, p in ipairs(procs) do
             if i > 3 then break end
             local nm = tostring(p.name or "?")
