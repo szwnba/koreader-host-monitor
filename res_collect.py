@@ -54,6 +54,50 @@ ALARM_MEM_PCT = 90.0
 ALARM_DISK_PCT = 90.0
 ALARM_CPU_PCT = 95.0
 ALARM_SWAP_PCT = 50.0
+# comm values that are a runtime THREAD name rather than the program identity
+# (Node >= v22 renames its main thread to "MainThread", V8/Chromium name
+# helpers "V8Worker"/"Chrome_MainThread" etc). Left alone, the cover shows a
+# wall of identical "MainThread" rows, so we resolve the real identity from
+# the command line / exe instead. Compared lowercased.
+GENERIC_COMM = {"mainthread", "workerthread", "v8worker", "v8workerthread",
+                "delayedtasksche", "delayedtaskscheduler", "threadpool",
+                "chrome_mainthread"}
+
+# chars that mark an argv entry as code/payload (from `interp -e '...'`) or
+# shell plumbing rather than a script path
+_ARG_JUNK = "\"'`(){}[];$=<>|&"
+
+
+def _looks_like_script(arg, base):
+    """True if an argv entry plausibly names the program's script/app:
+    a path (has a separator) or a filename with an extension -- NOT a flag
+    value ("8080") or an eval payload ("print('hi')")."""
+    if " " in arg or any(c in arg for c in _ARG_JUNK):
+        return False
+    if "/" in arg:
+        return True
+    head, sep, ext = base.rpartition(".")
+    return bool(sep) and bool(head) and ext.isalnum() and 1 <= len(ext) <= 8
+
+
+def _proc_display_name(comm, cmdline, exe):
+    """Human display name for a process.
+
+    Keep comm unless it is a generic runtime thread name -- then prefer the
+    first script-looking argv entry ("node apps/api/src/main.ts" ->
+    "main.ts"), else the exe basename, else the original comm.
+    """
+    if not comm or comm.lower() not in GENERIC_COMM:
+        return comm
+    for arg in cmdline[1:] if cmdline else []:
+        base = os.path.basename(arg)
+        if base and not base.startswith("-") and _looks_like_script(arg, base):
+            return base[:24]
+    if exe:
+        base = os.path.basename(exe)
+        if base:
+            return base[:24]
+    return comm
 
 
 def _fmt_uptime(sec):
@@ -78,6 +122,25 @@ def _read_lines(path):
             return f.read().splitlines()
     except Exception:
         return []
+
+
+def _read_cmdline(pid_s):
+    """/proc/<pid>/cmdline as a list of args ("" entries stripped)."""
+    try:
+        with open("/proc/%s/cmdline" % pid_s, "rb") as f:
+            raw = f.read()
+    except Exception:
+        return []
+    if not raw:
+        return []
+    return [a for a in raw.decode("utf-8", "replace").split("\0") if a]
+
+
+def _read_exe(pid_s):
+    try:
+        return os.readlink("/proc/%s/exe" % pid_s)
+    except Exception:
+        return None
 
 
 class ProcSampler:
@@ -170,6 +233,9 @@ class ProcSampler:
                 fields = st[rp + 2:].split()
                 total = int(fields[11]) + int(fields[12])          # utime+stime
                 name = st[st.find("(") + 1:st.find(")")]
+                if name.lower() in GENERIC_COMM:
+                    name = _proc_display_name(name, _read_cmdline(pid_s),
+                                             _read_exe(pid_s))
                 with open("/proc/%s/status" % pid_s, "r") as f:
                     rss = 0.0
                     for sl in f:
@@ -382,7 +448,7 @@ class PsutilSampler:
         psutil.cpu_percent(interval=None)
         psutil.net_io_counters()
         for p in psutil.process_iter(["cpu_percent", "memory_info",
-                                      "name", "pid"]):
+                                      "name", "pid", "cmdline", "exe"]):
             try:
                 p.cpu_percent(interval=None)
             except Exception:
@@ -412,12 +478,14 @@ class PsutilSampler:
 
         top = []
         for p in psutil.process_iter(["cpu_percent", "memory_info",
-                                      "name", "pid"]):
+                                      "name", "pid", "cmdline", "exe"]):
             try:
                 info = p.info
                 if not info["name"]:
                     continue
-                top.append({"name": info["name"][:24],
+                top.append({"name": _proc_display_name(
+                                info["name"], info.get("cmdline") or [],
+                                info.get("exe"))[:24],
                             "pid": info["pid"],
                             "cpu": round(info.get("cpu_percent") or 0.0, 1),
                             "memMB": round((info.get("memory_info") or
