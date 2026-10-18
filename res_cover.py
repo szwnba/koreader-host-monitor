@@ -148,7 +148,7 @@ def _sec_token(d, x0, xr, y, s, st, P):
     z = st.get("zcode")
     if not z:
         return y
-    # percentages in the payload are USED; show REMAINING on the cover.
+    # percentages in the payload are USED; the cover shows USED directly.
     # Two lines: bigger plan label, then 5H/WK pinned to opposite edges so
     # the two windows are as far apart as the screen allows.
     lvl = str(z.get("level") or "?").upper()
@@ -157,9 +157,9 @@ def _sec_token(d, x0, xr, y, s, st, P):
     _text(d, (x0, y), "TOKEN %s" % lvl, int(64 * s), P["LGRAY"],
           anchor="lt")
     y2 = y + int(76 * s)
-    _text(d, (x0, y2), "5H %d%%" % (100 - p5), int(72 * s), P["WHITE"],
+    _text(d, (x0, y2), "5H %d%%" % p5, int(72 * s), P["WHITE"],
           anchor="lt")
-    _text(d, (xr, y2), "WK %d%%" % (100 - pw), int(72 * s), P["WHITE"],
+    _text(d, (xr, y2), "WK %d%%" % pw, int(72 * s), P["WHITE"],
           anchor="rt")
     d.line([(x0, y + int(156 * s)), (x0 + int(600 * s), y + int(156 * s))],
            fill=P["DGRAY"] + (255,), width=1)

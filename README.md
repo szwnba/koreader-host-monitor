@@ -20,10 +20,10 @@
   TOP 10 内存进程
   （CPU% + 内存 MB，按内存降序；Node 等运行时写进 comm 的线程名
   如 `MainThread` 会自动还原成脚本名）；底部运行时长。
-- **Coding Plan 套餐余量行**（可选）：自动复用本机 ZCode 托管的
+- **Coding Plan 套餐用量行**（可选）：自动复用本机 ZCode 托管的
   智谱 GLM Coding Plan 凭据（本机解密，不落盘、不外传 key），查官方
-  `/api/monitor/usage/quota/limit` 接口，在进程列表下方显示
-  `TOKEN PRO  5H 98%  WK 16%`（5 小时窗口 / 周窗口的**剩余**百分比，
+  `/api/monitor/usage/quota/limit` 接口，置顶显示套餐档位与
+  `5H xx%` / `WK xx%`（5 小时窗口 / 周窗口的**已用**百分比，
   官方口径，10 分钟缓存）；查询失败或无 ZCode 时自动隐藏。
   任一窗口已用 ≥85% 时顶部弹反色告警条。
 - **纯文字大字号版式**：无标题横幅、无背景网格、无进度条、无图标，
