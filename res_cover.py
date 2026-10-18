@@ -121,29 +121,45 @@ def _section_label(d, x, y, label, P, s):
 
 # ---- section renderers (design units @1440h, scaled by s) ------------------
 
-def _sec_cpu(d, x0, xr, y, s, st, P):
+def _sec_gauge(d, x0, xr, y, s, st, P):
+    """One-line CPU + MEM gauge (user request: compact, single row)."""
     cpu = st.get("cpu") or {}
-    if not cpu:
-        _text(d, (x0, y), "cpu: n/a", int(40 * s), P["MGRAY"])
-        return y + int(60 * s)
-    y = _section_label(d, x0, y, "CPU", P, s)
-    big = "%d%%" % int(round(cpu.get("pct", 0)))
-    _text(d, (x0, y - int(4 * s)), big, int(210 * s), P["WHITE"],
-          anchor="lt")
-    return y + int(216 * s)
-
-
-def _sec_mem(d, x0, xr, y, s, st, P):
     mem = st.get("mem") or {}
-    if not mem:
+    cpus = "%d%%" % int(round(cpu.get("pct") or 0))
+    left = "CPU %s" % cpus
+    mems = "MEM %.1fG / %.1fG   %d%%" % (
+        mem.get("usedGB", 0), mem.get("totalGB", 0),
+        int(float(mem.get("pct") or 0)))
+    tf = _font(int(60 * s))
+    if d.textlength(left + "   ", font=tf) + d.textlength(mems, font=tf) \
+            > (xr - x0):
+        # tight screens: drop the spaces around the slash
+        mems = "MEM %.1f/%.1fG  %d%%" % (
+            mem.get("usedGB", 0), mem.get("totalGB", 0),
+            int(float(mem.get("pct") or 0)))
+    _text(d, (x0, y), left, int(60 * s), P["WHITE"], anchor="lt")
+    _text(d, (xr, y), mems, int(60 * s), P["WHITE"], anchor="rt")
+    d.line([(x0, y + int(80 * s)), (x0 + int(600 * s), y + int(80 * s))],
+           fill=P["DGRAY"] + (255,), width=1)
+    return y + int(98 * s)
+
+
+def _sec_token(d, x0, xr, y, s, st, P):
+    z = st.get("zcode")
+    if not z:
         return y
-    y = _section_label(d, x0, y, "MEM", P, s)
-    pct = float(mem.get("pct", 0))
-    _text(d, (x0, y),
-          "%.1fG / %.1fG   %d%%" % (mem.get("usedGB", 0),
-                                    mem.get("totalGB", 0), int(pct)),
-          int(60 * s), P["WHITE"], anchor="lt")
-    return y + int(92 * s)
+    # percentages in the payload are USED; show REMAINING on the cover
+    lvl = str(z.get("level") or "?").upper()
+    p5 = int(z.get("tokens5hPct") or 0)
+    pw = int(z.get("tokensWeekPct") or 0)
+    _text(d, (x0, y), "TOKEN %s" % lvl, int(52 * s), P["LGRAY"], anchor="lt")
+    _text(d, (x0 + int(430 * s), y), "5H %d%%" % (100 - p5),
+          int(72 * s), P["WHITE"], anchor="lt")
+    _text(d, (xr, y), "WK %d%%" % (100 - pw),
+          int(72 * s), P["WHITE"], anchor="rt")
+    d.line([(x0, y + int(88 * s)), (x0 + int(600 * s), y + int(88 * s))],
+           fill=P["DGRAY"] + (255,), width=1)
+    return y + int(106 * s)
 
 
 def _sec_procs(d, x0, xr, y, s, st, P):
@@ -172,22 +188,6 @@ def _sec_procs(d, x0, xr, y, s, st, P):
         _text(d, (xr, y), mems, int(46 * s), P["WHITE"], anchor="rt")
         y += int(57 * s)
     return y
-
-
-def _sec_token(d, x0, xr, y, s, st, P):
-    z = st.get("zcode")
-    if not z:
-        return y
-    # percentages in the payload are USED; show REMAINING on the cover
-    lvl = str(z.get("level") or "?").upper()
-    p5 = int(z.get("tokens5hPct") or 0)
-    pw = int(z.get("tokensWeekPct") or 0)
-    _text(d, (x0, y), "TOKEN %s" % lvl, int(40 * s), P["LGRAY"], anchor="lt")
-    _text(d, (x0 + int(360 * s), y), "5H %d%%" % (100 - p5),
-          int(52 * s), P["WHITE"], anchor="lt")
-    _text(d, (xr, y), "WK %d%%" % (100 - pw),
-          int(52 * s), P["WHITE"], anchor="rt")
-    return y + int(74 * s)
 
 
 # ---- main renderer ----------------------------------------------------------
@@ -238,9 +238,8 @@ def render_res_cover(status, w=1080, h=1440, mono=True, theme="dark",
     # ---- sections; the plan-quota row sits on top (user's primary metric),
     # ---- on a short screen the TOP MEM block is dropped first ---------------
     y = _sec_token(d, x0, xr, y, s, status, P)
-    y = _sec_cpu(d, x0, xr, y, s, status, P)
-    y = _sec_mem(d, x0, xr, y, s, status, P)
-    if y + int(660 * s) < bottom_limit:
+    y = _sec_gauge(d, x0, xr, y, s, status, P)
+    if y + int(560 * s) < bottom_limit:
         y = _sec_procs(d, x0, xr, y, s, status, P)
 
     # ---- footer ----------------------------------------------------------------

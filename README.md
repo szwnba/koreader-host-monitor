@@ -15,10 +15,11 @@
 ## 功能特性
 
 - **常驻看板**：Kindle 上常驻显示，每 **3 分钟**自动刷新。
-- **指标**：CPU 总占用大字号直出（不显示 load/温度）；内存/Swap 数值行；
+- **指标**：套餐余量行置顶（TOKEN，见下）；CPU + 内存合并为一行
+  大字号（`CPU 34%` / `MEM 4.9G / 6.8G 72%`）；
   TOP 10 内存进程
   （CPU% + 内存 MB，按内存降序；Node 等运行时写进 comm 的线程名
-  如 `MainThread` 会自动还原成脚本名）；运行时长。
+  如 `MainThread` 会自动还原成脚本名）；底部运行时长。
 - **Coding Plan 套餐余量行**（可选）：自动复用本机 ZCode 托管的
   智谱 GLM Coding Plan 凭据（本机解密，不落盘、不外传 key），查官方
   `/api/monitor/usage/quota/limit` 接口，在进程列表下方显示
