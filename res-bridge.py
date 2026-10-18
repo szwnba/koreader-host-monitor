@@ -31,7 +31,7 @@ import sys
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, quote
 
 # pythonw / no-console launchers have stdout=None; any print() would then
 # raise and kill the process right after bind (same guard as upstream).
@@ -132,13 +132,16 @@ def current_status(host=None):
 # ---- HTTP --------------------------------------------------------------------
 
 class Handler(BaseHTTPRequestHandler):
-    def _send(self, code, obj, raw=None, ctype="application/json"):
+    def _send(self, code, obj, raw=None, ctype="application/json",
+              nocache=False):
         body = raw if raw is not None else \
             json.dumps(obj, ensure_ascii=False).encode("utf-8")
         self.send_response(code)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Access-Control-Allow-Origin", "*")
+        if nocache:
+            self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(body)
 
@@ -180,10 +183,39 @@ class Handler(BaseHTTPRequestHandler):
                 _log("COVER ok %d bytes in %.2fs (w=%d h=%d theme=%s%s)"
                      % (len(png), time.time() - t0, w, h, theme,
                         " host=%s" % host if host else ""))
-                self._send(200, None, raw=png, ctype="image/png")
+                self._send(200, None, raw=png, ctype="image/png",
+                           nocache=True)
             except Exception as e:
                 _log("COVER FAIL %s" % e)
                 self._send(500, {"error": str(e)})
+        elif u.path == "/board":
+            # browser mode: zero-install dashboard for anything with a
+            # browser -- old Kindles (K3's experimental browser included),
+            # phones, spare tablets. No jailbreak, no KOReader, Wi-Fi only.
+            qs = parse_qs(u.query)
+            theme = qs.get("theme", ["dark"])[0]
+            if theme not in ("dark", "light"):
+                theme = "dark"
+            try:
+                w = max(200, min(int((qs.get("w") or ["600"])[0]), 3000))
+                h = max(200, min(int((qs.get("h") or ["800"])[0]), 4000))
+                refresh = max(15, min(int((qs.get("refresh") or ["180"])[0]),
+                                      3600))
+            except ValueError:
+                w, h, refresh = 600, 800, 180
+            host = (qs.get("host") or [None])[0]
+            q = "w=%d&h=%d&mono=1&theme=%s&exit=0" % (w, h, theme)
+            if host:
+                q += "&host=" + quote(host, safe="")
+            html = ("<!doctype html><html><head><meta charset='utf-8'>"
+                    "<title>Host Monitor</title>"
+                    "<meta http-equiv='refresh' content='%d'>"
+                    "<style>html,body{margin:0;padding:0;background:#000}"
+                    "img{display:block;width:100%%}</style></head>"
+                    "<body><img src='/cover.png?%s'></body></html>"
+                    % (refresh, q))
+            self._send(200, None, raw=html.encode("utf-8"),
+                       ctype="text/html; charset=utf-8", nocache=True)
         elif u.path == "/health":
             self._send(200, {"ok": True,
                               "backend": (_snap.get("snap") or {}).get("backend"),
