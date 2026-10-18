@@ -629,7 +629,7 @@ function HostMonitor:buildBoard(data, err)
     if #procs > 0 then
         add("TOP MEM:", 16)
         for i, p in ipairs(procs) do
-            if i > 5 then break end
+            if i > 10 then break end
             local nm = tostring(p.name or "?")
             if #nm > 24 then nm = nm:sub(1, 23) .. ".." end
             add(string.format("  %-24s %s%%  %sM",

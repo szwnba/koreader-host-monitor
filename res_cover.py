@@ -114,9 +114,9 @@ def _fit(d, s, font, maxw):
 
 def _section_label(d, x, y, label, P, s):
     _text(d, (x, y), label, int(56 * s), P["WHITE"], anchor="lt")
-    d.line([(x, y + int(70 * s)), (x + int(600 * s), y + int(70 * s))],
+    d.line([(x, y + int(66 * s)), (x + int(600 * s), y + int(66 * s))],
            fill=P["DGRAY"] + (255,), width=1)
-    return y + int(82 * s)
+    return y + int(78 * s)
 
 
 # ---- section renderers (design units @1440h, scaled by s) ------------------
@@ -130,7 +130,7 @@ def _sec_cpu(d, x0, xr, y, s, st, P):
     big = "%d%%" % int(round(cpu.get("pct", 0)))
     _text(d, (x0, y - int(4 * s)), big, int(210 * s), P["WHITE"],
           anchor="lt")
-    return y + int(230 * s)
+    return y + int(224 * s)
 
 
 def _sec_mem(d, x0, xr, y, s, st, P):
@@ -143,7 +143,7 @@ def _sec_mem(d, x0, xr, y, s, st, P):
           "%.1fG / %.1fG   %d%%" % (mem.get("usedGB", 0),
                                     mem.get("totalGB", 0), int(pct)),
           int(60 * s), P["WHITE"], anchor="lt")
-    return y + int(104 * s)
+    return y + int(100 * s)
 
 
 def _sec_procs(d, x0, xr, y, s, st, P):
@@ -153,7 +153,7 @@ def _sec_procs(d, x0, xr, y, s, st, P):
         _text(d, (x0, y), "- none -", int(36 * s), P["MGRAY"])
         return y + int(56 * s)
     tf = _font(int(46 * s))
-    for i, p in enumerate(procs[:5], 1):
+    for i, p in enumerate(procs[:10], 1):
         # right columns sized by content so MEM/CPU can never overlap the
         # name column (measured, font-agnostic)
         memmb = p.get("memMB", 0)
@@ -170,7 +170,7 @@ def _sec_procs(d, x0, xr, y, s, st, P):
               anchor="lt")
         _text(d, (cpua, y), cpus, int(46 * s), P["WHITE"], anchor="rt")
         _text(d, (xr, y), mems, int(46 * s), P["WHITE"], anchor="rt")
-        y += int(66 * s)
+        y += int(60 * s)
     return y
 
 
@@ -218,7 +218,7 @@ def render_res_cover(status, w=1080, h=1440, mono=True, theme="dark",
     # ---- never the gauges ----------------------------------------------------
     y = _sec_cpu(d, x0, xr, y, s, status, P)
     y = _sec_mem(d, x0, xr, y, s, status, P)
-    if y + int(430 * s) < bottom_limit:
+    if y + int(690 * s) < bottom_limit:
         y = _sec_procs(d, x0, xr, y, s, status, P)
 
     # ---- footer ----------------------------------------------------------------
