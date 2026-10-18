@@ -174,6 +174,29 @@ def _sec_procs(d, x0, xr, y, s, st, P):
     return y
 
 
+def _fmt_tok(n):
+    n = int(n)
+    if n >= 1e9:
+        return "%.2fB" % (n / 1e9)
+    if n >= 1e6:
+        return "%.1fM" % (n / 1e6)
+    if n >= 1e3:
+        return "%dk" % (n // 1000)
+    return "%d" % n
+
+
+def _sec_token(d, x0, xr, y, s, st, P):
+    z = st.get("zcode")
+    if not z:
+        return y
+    _text(d, (x0, y), "TOKEN", int(34 * s), P["LGRAY"], anchor="lt")
+    _text(d, (x0 + int(220 * s), y), "5H %s" % _fmt_tok(z.get("tokens5h", 0)),
+          int(40 * s), P["WHITE"], anchor="lt")
+    _text(d, (xr, y), "DAY %s" % _fmt_tok(z.get("tokensToday", 0)),
+          int(40 * s), P["WHITE"], anchor="rt")
+    return y + int(64 * s)
+
+
 # ---- main renderer ----------------------------------------------------------
 
 def render_res_cover(status, w=1080, h=1440, mono=True, theme="dark",
@@ -220,6 +243,10 @@ def render_res_cover(status, w=1080, h=1440, mono=True, theme="dark",
     y = _sec_mem(d, x0, xr, y, s, status, P)
     if y + int(690 * s) < bottom_limit:
         y = _sec_procs(d, x0, xr, y, s, status, P)
+        # TOKEN is the last optional row: on short screens it goes first,
+        # never overlapping the footer rule
+        if y + int(70 * s) < h - m - int(40 * s):
+            y = _sec_token(d, x0, xr, y, s, status, P)
 
     # ---- footer ----------------------------------------------------------------
     fy = h - m - int(56 * s)

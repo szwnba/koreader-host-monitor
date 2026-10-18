@@ -579,6 +579,43 @@ class PsutilSampler:
         return None
 
 
+# ---- ZCode local token usage (optional info layer) --------------------------
+
+ZCODE_DB = os.path.expanduser("~/.zcode/cli/db/db.sqlite")
+TOKEN_WINDOW_H = 5
+
+
+def zcode_token_usage(db_path=ZCODE_DB, window_h=TOKEN_WINDOW_H):
+    """Sum local ZCode token spend from its sqlite usage log.
+
+    computed_total_tokens is the billed number (input + output, cache read
+    included). Two windows: the rolling `window_h` hour window (the same
+    shape as coding-plan rate-limit windows) and since local midnight.
+    Returns None when the DB is absent or unreadable -- purely optional
+    telemetry, never fatal to sampling."""
+    if not os.path.exists(db_path):
+        return None
+    try:
+        import sqlite3
+        now = time.time()
+        con = sqlite3.connect("file:%s?mode=ro" % db_path, uri=True,
+                              timeout=2)
+        try:
+            q = ("select sum(computed_total_tokens) from model_usage "
+                 "where started_at >= ?")
+            lt = time.localtime(now)
+            mid = time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday,
+                               0, 0, 0, 0, 0, -1))
+            h5 = con.execute(
+                q, (int((now - window_h * 3600) * 1000),)).fetchone()[0]
+            day = con.execute(q, (int(mid * 1000),)).fetchone()[0]
+        finally:
+            con.close()
+        return {"tokens5h": int(h5 or 0), "tokensToday": int(day or 0)}
+    except Exception:
+        return None
+
+
 # ---------------------------------------------------------------------------
 
 def make_sampler():

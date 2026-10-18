@@ -82,6 +82,7 @@ def _publisher():
     try:
         sampler = res_collect.make_sampler()
         snap = sampler.sample()          # prime (CPU/net are first-tick zeros)
+        snap["zcode"] = res_collect.zcode_token_usage()
         with _lock:
             _snap["snap"] = snap
             _snap["error"] = None
@@ -101,6 +102,7 @@ def _sampler_loop(sampler):
         time.sleep(interval)
         try:
             snap = sampler.sample()
+            snap["zcode"] = res_collect.zcode_token_usage()
         except Exception as e:
             _log("SAMPLER FAIL %s" % e)
             continue
