@@ -113,10 +113,10 @@ def _fit(d, s, font, maxw):
 
 
 def _section_label(d, x, y, label, P, s):
-    _text(d, (x, y), label, int(44 * s), P["WHITE"], anchor="lt")
-    d.line([(x, y + int(56 * s)), (x + int(600 * s), y + int(56 * s))],
+    _text(d, (x, y), label, int(56 * s), P["WHITE"], anchor="lt")
+    d.line([(x, y + int(70 * s)), (x + int(600 * s), y + int(70 * s))],
            fill=P["DGRAY"] + (255,), width=1)
-    return y + int(68 * s)
+    return y + int(82 * s)
 
 
 # ---- section renderers (design units @1440h, scaled by s) ------------------
@@ -124,23 +124,13 @@ def _section_label(d, x, y, label, P, s):
 def _sec_cpu(d, x0, xr, y, s, st, P):
     cpu = st.get("cpu") or {}
     if not cpu:
-        _text(d, (x0, y), "cpu: n/a", int(30 * s), P["MGRAY"])
-        return y + int(50 * s)
+        _text(d, (x0, y), "cpu: n/a", int(40 * s), P["MGRAY"])
+        return y + int(60 * s)
     y = _section_label(d, x0, y, "CPU", P, s)
     big = "%d%%" % int(round(cpu.get("pct", 0)))
-    _text(d, (x0, y - int(6 * s)), big, int(170 * s), P["WHITE"],
+    _text(d, (x0, y - int(4 * s)), big, int(210 * s), P["WHITE"],
           anchor="lt")
-    loads = "LOAD  %.1f / %.1f / %.1f" % (cpu.get("load1", 0),
-                                          cpu.get("load5", 0),
-                                          cpu.get("load15", 0))
-    _text(d, (xr, y + int(4 * s)), loads, int(30 * s), P["LGRAY"],
-          anchor="rt")
-    extra = "%d CORES" % cpu.get("n", 0)
-    if cpu.get("tempC") is not None:
-        extra += "   TEMP %dC" % int(round(float(cpu["tempC"])))
-    _text(d, (xr, y + int(44 * s)), extra, int(26 * s), P["MGRAY"],
-          anchor="rt")
-    return y + int(200 * s)
+    return y + int(230 * s)
 
 
 def _sec_mem(d, x0, xr, y, s, st, P):
@@ -152,23 +142,25 @@ def _sec_mem(d, x0, xr, y, s, st, P):
     _text(d, (x0, y),
           "%.1fG / %.1fG   %d%%" % (mem.get("usedGB", 0),
                                     mem.get("totalGB", 0), int(pct)),
-          int(46 * s), P["WHITE"], anchor="lt")
+          int(60 * s), P["WHITE"], anchor="lt")
+    y += int(78 * s)
     swt = mem.get("swapTotalGB", 0) or 0
     if swt > 0:
-        _text(d, (xr, y + int(8 * s)),
+        _text(d, (x0, y),
               "SWAP %.1f/%.1fG  %d%%" % (mem.get("swapUsedGB", 0), swt,
                                          mem.get("swapPct", 0)),
-              int(30 * s), P["MGRAY"], anchor="rt")
-    return y + int(72 * s)
+              int(36 * s), P["MGRAY"], anchor="lt")
+        y += int(46 * s)
+    return y
 
 
 def _sec_procs(d, x0, xr, y, s, st, P):
     procs = st.get("procs") or []
     y = _section_label(d, x0, y, "TOP MEM", P, s)
     if not procs:
-        _text(d, (x0, y), "- none -", int(30 * s), P["MGRAY"])
-        return y + int(50 * s)
-    tf = _font(int(36 * s))
+        _text(d, (x0, y), "- none -", int(36 * s), P["MGRAY"])
+        return y + int(56 * s)
+    tf = _font(int(46 * s))
     for i, p in enumerate(procs[:5], 1):
         # right columns sized by content so MEM/CPU can never overlap the
         # name column (measured, font-agnostic)
@@ -176,17 +168,17 @@ def _sec_procs(d, x0, xr, y, s, st, P):
         mems = ("%.1fG" % (memmb / 1024.0)) if memmb >= 1024 else \
                ("%dM" % int(memmb))
         memw = d.textlength(mems, font=tf)
-        cpua = xr - int(30 * s) - memw
+        cpua = xr - int(36 * s) - memw
         cpus = "%s%%" % p.get("cpu", 0)
         cpuw = d.textlength(cpus, font=tf)
         name = _fit(d, str(p.get("name", "?")), tf,
-                    max(int(60 * s), cpua - cpuw - (x0 + int(52 * s))))
-        _text(d, (x0, y), "%d" % i, int(36 * s), P["MGRAY"], anchor="lt")
-        _text(d, (x0 + int(44 * s), y), name, int(36 * s), P["LGRAY"],
+                    max(int(60 * s), cpua - cpuw - (x0 + int(64 * s))))
+        _text(d, (x0, y), "%d" % i, int(46 * s), P["MGRAY"], anchor="lt")
+        _text(d, (x0 + int(56 * s), y), name, int(46 * s), P["LGRAY"],
               anchor="lt")
-        _text(d, (cpua, y), cpus, int(36 * s), P["WHITE"], anchor="rt")
-        _text(d, (xr, y), mems, int(36 * s), P["WHITE"], anchor="rt")
-        y += int(54 * s)
+        _text(d, (cpua, y), cpus, int(46 * s), P["WHITE"], anchor="rt")
+        _text(d, (xr, y), mems, int(46 * s), P["WHITE"], anchor="rt")
+        y += int(66 * s)
     return y
 
 
@@ -208,26 +200,12 @@ def render_res_cover(status, w=1080, h=1440, mono=True, theme="dark",
     x0 = m + int(46 * s)
     xr = w - m - int(46 * s)
     bottom_limit = h - m - int(80 * s)
-    y = m + int(44 * s)
-
-    # ---- header --------------------------------------------------------------
-    host = str(status.get("host", "?"))[:24]
-    _text(d, (x0, y), "HOST MONITOR", int(44 * s), P["WHITE"], anchor="lt")
-    _text(d, (xr, y + int(6 * s)), host, int(34 * s), P["WHITE"],
-          anchor="rt")
-    y += int(56 * s)
-    _text(d, (xr, y), "SYNC " + str(status.get("updatedAt", "?")),
-          int(28 * s), P["LGRAY"], anchor="rt")
-    if not status.get("live", True):
-        _text(d, (x0, y - int(4 * s)), "STALE", int(30 * s), P["WHITE"],
-              anchor="lt")
-    y += int(44 * s)
-    d.line([(m + int(12 * s), y), (w - m - int(12 * s), y)],
-           fill=P["WHITE"] + (160,), width=2)
-    y += int(34 * s)
+    y = m + int(20 * s)
 
     # ---- alarm strip (inverted full width = loudest on e-ink) ----------------
     alarms = list(status.get("alarms") or [])
+    if not status.get("live", True):
+        alarms.insert(0, "STALE")
     err = status.get("error")
     if err:
         alarms.append("ERR " + str(err)[:32])
@@ -235,20 +213,20 @@ def render_res_cover(status, w=1080, h=1440, mono=True, theme="dark",
         msg = "ALARM  " + "  \u00b7  ".join(alarms[:3])
         if len(alarms) > 3:
             msg += "  \u00b7 +%d" % (len(alarms) - 3)
-        tf = _font(int(30 * s))
+        tf = _font(int(36 * s))
         msg = _fit(d, msg, tf, int(560 * s))
         ay = y + 2
         d.rectangle([m + int(12 * s), ay, w - m - int(12 * s),
-                     ay + int(48 * s)], fill=P["WHITE"] + (255,))
-        _text(d, ((x0 + xr) // 2, ay + int(24 * s)), msg, int(30 * s),
+                     ay + int(56 * s)], fill=P["WHITE"] + (255,))
+        _text(d, ((x0 + xr) // 2, ay + int(28 * s)), msg, int(36 * s),
                P["INK"], anchor="mm")
-        y = ay + int(48 * s) + int(16 * s)
+        y = ay + int(56 * s) + int(18 * s)
 
     # ---- sections; on a short screen the TOP MEM block is dropped first,
     # ---- never the gauges ----------------------------------------------------
     y = _sec_cpu(d, x0, xr, y, s, status, P)
     y = _sec_mem(d, x0, xr, y, s, status, P)
-    if y + int(380 * s) < bottom_limit:
+    if y + int(430 * s) < bottom_limit:
         y = _sec_procs(d, x0, xr, y, s, status, P)
 
     # ---- footer ----------------------------------------------------------------
@@ -259,9 +237,9 @@ def render_res_cover(status, w=1080, h=1440, mono=True, theme="dark",
     up = status.get("uptime") or "?"
     _text(d, (x0, fy),
           "UP %s   SRC:%s" % (up, str(status.get("source", "?")).upper()),
-          int(28 * s), P["MGRAY"], anchor="lt")
+          int(34 * s), P["MGRAY"], anchor="lt")
     if exit_hint:
-        _text(d, (xr, fy), "EXIT: NEXT x3", int(26 * s), P["MGRAY"],
+        _text(d, (xr, fy), "EXIT: NEXT x3", int(32 * s), P["MGRAY"],
               anchor="rt")
 
     if mono:
