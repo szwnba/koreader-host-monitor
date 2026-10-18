@@ -193,9 +193,9 @@ class Handler(BaseHTTPRequestHandler):
             # browser -- old Kindles (K3's experimental browser included),
             # phones, spare tablets. No jailbreak, no KOReader, Wi-Fi only.
             qs = parse_qs(u.query)
-            theme = qs.get("theme", ["dark"])[0]
+            theme = qs.get("theme", ["light"])[0]
             if theme not in ("dark", "light"):
-                theme = "dark"
+                theme = "light"
             try:
                 w = max(200, min(int((qs.get("w") or ["600"])[0]), 3000))
                 h = max(200, min(int((qs.get("h") or ["800"])[0]), 4000))
