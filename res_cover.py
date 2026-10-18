@@ -114,9 +114,9 @@ def _fit(d, s, font, maxw):
 
 def _section_label(d, x, y, label, P, s):
     _text(d, (x, y), label, int(56 * s), P["WHITE"], anchor="lt")
-    d.line([(x, y + int(66 * s)), (x + int(600 * s), y + int(66 * s))],
+    d.line([(x, y + int(62 * s)), (x + int(600 * s), y + int(62 * s))],
            fill=P["DGRAY"] + (255,), width=1)
-    return y + int(78 * s)
+    return y + int(74 * s)
 
 
 # ---- section renderers (design units @1440h, scaled by s) ------------------
@@ -130,7 +130,7 @@ def _sec_cpu(d, x0, xr, y, s, st, P):
     big = "%d%%" % int(round(cpu.get("pct", 0)))
     _text(d, (x0, y - int(4 * s)), big, int(210 * s), P["WHITE"],
           anchor="lt")
-    return y + int(224 * s)
+    return y + int(216 * s)
 
 
 def _sec_mem(d, x0, xr, y, s, st, P):
@@ -143,7 +143,7 @@ def _sec_mem(d, x0, xr, y, s, st, P):
           "%.1fG / %.1fG   %d%%" % (mem.get("usedGB", 0),
                                     mem.get("totalGB", 0), int(pct)),
           int(60 * s), P["WHITE"], anchor="lt")
-    return y + int(100 * s)
+    return y + int(92 * s)
 
 
 def _sec_procs(d, x0, xr, y, s, st, P):
@@ -170,7 +170,7 @@ def _sec_procs(d, x0, xr, y, s, st, P):
               anchor="lt")
         _text(d, (cpua, y), cpus, int(46 * s), P["WHITE"], anchor="rt")
         _text(d, (xr, y), mems, int(46 * s), P["WHITE"], anchor="rt")
-        y += int(60 * s)
+        y += int(57 * s)
     return y
 
 
@@ -182,12 +182,12 @@ def _sec_token(d, x0, xr, y, s, st, P):
     lvl = str(z.get("level") or "?").upper()
     p5 = int(z.get("tokens5hPct") or 0)
     pw = int(z.get("tokensWeekPct") or 0)
-    _text(d, (x0, y), "TOKEN %s" % lvl, int(34 * s), P["LGRAY"], anchor="lt")
-    _text(d, (x0 + int(300 * s), y), "5H %d%%" % (100 - p5),
-          int(40 * s), P["WHITE"], anchor="lt")
+    _text(d, (x0, y), "TOKEN %s" % lvl, int(40 * s), P["LGRAY"], anchor="lt")
+    _text(d, (x0 + int(360 * s), y), "5H %d%%" % (100 - p5),
+          int(52 * s), P["WHITE"], anchor="lt")
     _text(d, (xr, y), "WK %d%%" % (100 - pw),
-          int(40 * s), P["WHITE"], anchor="rt")
-    return y + int(64 * s)
+          int(52 * s), P["WHITE"], anchor="rt")
+    return y + int(74 * s)
 
 
 # ---- main renderer ----------------------------------------------------------
@@ -235,16 +235,13 @@ def render_res_cover(status, w=1080, h=1440, mono=True, theme="dark",
                P["INK"], anchor="mm")
         y = ay + int(56 * s) + int(18 * s)
 
-    # ---- sections; on a short screen the TOP MEM block is dropped first,
-    # ---- never the gauges ----------------------------------------------------
+    # ---- sections; the plan-quota row sits on top (user's primary metric),
+    # ---- on a short screen the TOP MEM block is dropped first ---------------
+    y = _sec_token(d, x0, xr, y, s, status, P)
     y = _sec_cpu(d, x0, xr, y, s, status, P)
     y = _sec_mem(d, x0, xr, y, s, status, P)
-    if y + int(690 * s) < bottom_limit:
+    if y + int(660 * s) < bottom_limit:
         y = _sec_procs(d, x0, xr, y, s, status, P)
-        # TOKEN is the last optional row: on short screens it goes first,
-        # never overlapping the footer rule
-        if y + int(70 * s) < h - m - int(40 * s):
-            y = _sec_token(d, x0, xr, y, s, status, P)
 
     # ---- footer ----------------------------------------------------------------
     fy = h - m - int(56 * s)
