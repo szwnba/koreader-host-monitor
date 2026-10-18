@@ -30,7 +30,10 @@ Output schema (what the bridge serves and res_cover.py renders):
 Empty lists / nulls are legal: the renderer must survive each field being
 absent (unmounted USB drive, no thermal zone, plain desktop without battery).
 """
+import base64
 import glob
+import hashlib
+import json
 import os
 import platform
 import shutil
@@ -579,41 +582,79 @@ class PsutilSampler:
         return None
 
 
-# ---- ZCode local token usage (optional info layer) --------------------------
+# ---- GLM coding-plan official quota (optional info layer) -------------------
 
-ZCODE_DB = os.path.expanduser("~/.zcode/cli/db/db.sqlite")
-TOKEN_WINDOW_H = 5
+ZCODE_CREDS = os.path.expanduser("~/.zcode/v2/credentials.json")
+PLAN_TTL = 600          # seconds; the endpoint is not for per-second polling
+_plan_cache = {"ts": 0.0, "data": None}
 
 
-def zcode_token_usage(db_path=ZCODE_DB, window_h=TOKEN_WINDOW_H):
-    """Sum local ZCode token spend from its sqlite usage log.
+def _zcode_plan_key(creds_path=ZCODE_CREDS):
+    """Decrypt the GLM coding-plan API key ZCode stores for its own use.
 
-    computed_total_tokens is the billed number (input + output, cache read
-    included). Two windows: the rolling `window_h` hour window (the same
-    shape as coding-plan rate-limit windows) and since local midnight.
-    Returns None when the DB is absent or unreadable -- purely optional
-    telemetry, never fatal to sampling."""
-    if not os.path.exists(db_path):
-        return None
+    Credentials are AES-256-GCM with key = sha256(secret); the secret is the
+    ZCODE_CREDENTIAL_SECRET env var or the machine-derived fallback string.
+    Value layout: 'enc:v1:' + b64url(iv) '.' b64url(tag) '.' b64url(ct).
+    Own machine, own credentials only -- nothing leaves this host except the
+    quota query to bigmodel.cn itself."""
+    import pwd
+    plat = {"Linux": "linux", "Darwin": "darwin", "Windows": "win32"} \
+        .get(platform.system(), platform.system().lower())
+    secret = os.environ.get("ZCODE_CREDENTIAL_SECRET") or (
+        "zcode-credential-fallback:%s:%s:%s"
+        % (plat, os.path.expanduser("~"),
+           pwd.getpwuid(os.getuid()).pw_name))
+    key = hashlib.sha256(secret.encode()).digest()
+    b64d = lambda t: base64.urlsafe_b64decode(t + "=" * (-len(t) % 4))
+    with open(creds_path) as f:
+        creds = json.load(f)
+    for k, v in creds.items():
+        if "coding-plan" in k and "bigmodel-individual" in k:
+            iv, tag, ct = (b64d(x) for x in v[7:].split("."))
+            from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+            return AESGCM(key).decrypt(iv, ct + tag, None).decode()
+    return None
+
+
+def zcode_plan_quota(ttl=PLAN_TTL, creds_path=ZCODE_CREDS):
+    """Query the official GLM coding-plan quota (5h + weekly token windows).
+
+    Returns {"level", "tokens5hPct", "tokensWeekPct", "reset5h", "resetWeek",
+    "reqs5hUsed", "reqs5hTotal"} (percentages are USED, not remaining), or
+    None when credentials/endpoint are unavailable. Cached for `ttl`."""
+    now = time.time()
+    if now - _plan_cache["ts"] < ttl:
+        return _plan_cache["data"]
+    data = None
     try:
-        import sqlite3
-        now = time.time()
-        con = sqlite3.connect("file:%s?mode=ro" % db_path, uri=True,
-                              timeout=2)
-        try:
-            q = ("select sum(computed_total_tokens) from model_usage "
-                 "where started_at >= ?")
-            lt = time.localtime(now)
-            mid = time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday,
-                               0, 0, 0, 0, 0, -1))
-            h5 = con.execute(
-                q, (int((now - window_h * 3600) * 1000),)).fetchone()[0]
-            day = con.execute(q, (int(mid * 1000),)).fetchone()[0]
-        finally:
-            con.close()
-        return {"tokens5h": int(h5 or 0), "tokensToday": int(day or 0)}
+        import urllib.request
+        apikey = _zcode_plan_key(creds_path)
+        req = urllib.request.Request(
+            "https://open.bigmodel.cn/api/monitor/usage/quota/limit",
+            headers={"Authorization": apikey,
+                     "Content-Type": "application/json",
+                     "Accept-Language": "en-US,en",
+                     "User-Agent": "res-bridge/1.0"})
+        body = json.loads(
+            urllib.request.urlopen(req, timeout=10).read().decode())
+        d = (body or {}).get("data") or {}
+        out = {"level": d.get("level")}
+        for lim in d.get("limits") or []:
+            t, unit, num = lim.get("type"), lim.get("unit"), lim.get("number")
+            if t == "TOKENS_LIMIT" and unit == 3 and num == 5:
+                out["tokens5hPct"] = int(lim.get("percentage") or 0)
+                out["reset5h"] = lim.get("nextResetTime")
+            elif t == "TOKENS_LIMIT" and unit == 6:
+                out["tokensWeekPct"] = int(lim.get("percentage") or 0)
+                out["resetWeek"] = lim.get("nextResetTime")
+            elif t == "TIME_LIMIT":
+                out["reqs5hUsed"] = lim.get("currentValue")
+                out["reqs5hTotal"] = lim.get("usage")
+        data = out if out.get("level") else None
     except Exception:
-        return None
+        data = None
+    _plan_cache.update(ts=now, data=data)
+    return data
 
 
 # ---------------------------------------------------------------------------

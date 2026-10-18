@@ -174,25 +174,18 @@ def _sec_procs(d, x0, xr, y, s, st, P):
     return y
 
 
-def _fmt_tok(n):
-    n = int(n)
-    if n >= 1e9:
-        return "%.2fB" % (n / 1e9)
-    if n >= 1e6:
-        return "%.1fM" % (n / 1e6)
-    if n >= 1e3:
-        return "%dk" % (n // 1000)
-    return "%d" % n
-
-
 def _sec_token(d, x0, xr, y, s, st, P):
     z = st.get("zcode")
     if not z:
         return y
-    _text(d, (x0, y), "TOKEN", int(34 * s), P["LGRAY"], anchor="lt")
-    _text(d, (x0 + int(220 * s), y), "5H %s" % _fmt_tok(z.get("tokens5h", 0)),
+    # percentages in the payload are USED; show REMAINING on the cover
+    lvl = str(z.get("level") or "?").upper()
+    p5 = int(z.get("tokens5hPct") or 0)
+    pw = int(z.get("tokensWeekPct") or 0)
+    _text(d, (x0, y), "TOKEN %s" % lvl, int(34 * s), P["LGRAY"], anchor="lt")
+    _text(d, (x0 + int(300 * s), y), "5H %d%%" % (100 - p5),
           int(40 * s), P["WHITE"], anchor="lt")
-    _text(d, (xr, y), "DAY %s" % _fmt_tok(z.get("tokensToday", 0)),
+    _text(d, (xr, y), "WK %d%%" % (100 - pw),
           int(40 * s), P["WHITE"], anchor="rt")
     return y + int(64 * s)
 
@@ -219,6 +212,11 @@ def render_res_cover(status, w=1080, h=1440, mono=True, theme="dark",
 
     # ---- alarm strip (inverted full width = loudest on e-ink) ----------------
     alarms = list(status.get("alarms") or [])
+    z = status.get("zcode") or {}
+    if z.get("tokensWeekPct", 0) >= 85:
+        alarms.append("PLAN WK %d%% USED" % z["tokensWeekPct"])
+    elif z.get("tokens5hPct", 0) >= 85:
+        alarms.append("PLAN 5H %d%% USED" % z["tokens5hPct"])
     if not status.get("live", True):
         alarms.insert(0, "STALE")
     err = status.get("error")
