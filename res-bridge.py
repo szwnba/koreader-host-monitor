@@ -141,7 +141,10 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Access-Control-Allow-Origin", "*")
         if nocache:
-            self.send_header("Cache-Control", "no-store")
+            self.send_header("Cache-Control", "no-store, no-cache, "
+                             "must-revalidate")
+            self.send_header("Pragma", "no-cache")
+            self.send_header("Expires", "0")
         self.end_headers()
         self.wfile.write(body)
 
@@ -207,13 +210,20 @@ class Handler(BaseHTTPRequestHandler):
             q = "w=%d&h=%d&mono=1&theme=%s&exit=0" % (w, h, theme)
             if host:
                 q += "&host=" + quote(host, safe="")
+            # ancient browsers (the K3's NetFront) ignore Cache-Control and
+            # happily redisplay a cached image after each meta-refresh; bust
+            # BOTH levels by making every URL unique per page generation --
+            # the refresh targets a new ?ts= each time, and the image URL
+            # carries the same nonce, so a cache hit is impossible
+            n = str(int(time.time()))
+            q += "&r=" + n
             html = ("<!doctype html><html><head><meta charset='utf-8'>"
                     "<title>Host Monitor</title>"
-                    "<meta http-equiv='refresh' content='%d'>"
-                    "<style>html,body{margin:0;padding:0;background:#000}"
+                    "<meta http-equiv='refresh' content='%d;url=/board?ts=%s'>"
+                    "<style>html,body{margin:0;padding:0;background:#fff}"
                     "img{display:block;width:100%%}</style></head>"
                     "<body><img src='/cover.png?%s'></body></html>"
-                    % (refresh, q))
+                    % (refresh, n, q))
             self._send(200, None, raw=html.encode("utf-8"),
                        ctype="text/html; charset=utf-8", nocache=True)
         elif u.path == "/health":
