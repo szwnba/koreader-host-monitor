@@ -199,7 +199,7 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 w = max(200, min(int((qs.get("w") or ["600"])[0]), 3000))
                 h = max(200, min(int((qs.get("h") or ["800"])[0]), 4000))
-                refresh = max(15, min(int((qs.get("refresh") or ["180"])[0]),
+                refresh = max(15, min(int((qs.get("refresh") or ["60"])[0]),
                                       3600))
             except ValueError:
                 w, h, refresh = 600, 800, 180
