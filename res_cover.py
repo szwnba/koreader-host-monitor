@@ -77,18 +77,22 @@ def _font(size):
 # ---- palettes (same semantics as the original cover_gen.py) ---------------
 
 def _mono_palette():
+    # dark theme: grays pushed toward white -- secondary text at 120/168
+    # turned into faint halftone mush on a real e-ink panel
     return {
-        "BG": (16, 16, 16), "WHITE": (238, 238, 238), "LGRAY": (168, 168, 168),
-        "MGRAY": (120, 120, 120), "DGRAY": (66, 66, 66), "DARK": (14, 14, 14),
-        "INK": (10, 10, 10),
+        "BG": (0, 0, 0), "WHITE": (255, 255, 255), "LGRAY": (205, 205, 205),
+        "MGRAY": (165, 165, 165), "DGRAY": (66, 66, 66), "DARK": (0, 0, 0),
+        "INK": (0, 0, 0),
     }
 
 
 def _mono_palette_inverted():
+    # light theme: text near-black on pure white; MGRAY 128 -> 85 because
+    # mid-gray reads as ~2.8:1 contrast, illegible on e-ink
     return {
-        "BG": (247, 247, 247), "WHITE": (12, 12, 12), "LGRAY": (78, 78, 78),
-        "MGRAY": (128, 128, 128), "DGRAY": (186, 186, 186),
-        "DARK": (238, 238, 238), "INK": (250, 250, 250),
+        "BG": (255, 255, 255), "WHITE": (0, 0, 0), "LGRAY": (45, 45, 45),
+        "MGRAY": (85, 85, 85), "DGRAY": (186, 186, 186),
+        "DARK": (235, 235, 235), "INK": (255, 255, 255),
     }
 
 
