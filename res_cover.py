@@ -143,15 +143,7 @@ def _sec_mem(d, x0, xr, y, s, st, P):
           "%.1fG / %.1fG   %d%%" % (mem.get("usedGB", 0),
                                     mem.get("totalGB", 0), int(pct)),
           int(60 * s), P["WHITE"], anchor="lt")
-    y += int(78 * s)
-    swt = mem.get("swapTotalGB", 0) or 0
-    if swt > 0:
-        _text(d, (x0, y),
-              "SWAP %.1f/%.1fG  %d%%" % (mem.get("swapUsedGB", 0), swt,
-                                         mem.get("swapPct", 0)),
-              int(36 * s), P["MGRAY"], anchor="lt")
-        y += int(46 * s)
-    return y
+    return y + int(104 * s)
 
 
 def _sec_procs(d, x0, xr, y, s, st, P):
