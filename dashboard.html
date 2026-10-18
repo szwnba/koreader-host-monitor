@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0d14">
+<title>Host Monitor</title>
+<style>
+  :root{
+    --bg:#0a0d14; --card-hi:#151c2c; --card-lo:#10151f;
+    --line:rgba(255,255,255,.075); --line-hi:rgba(255,255,255,.14);
+    --ink:#e9eef8; --dim:#8b96ad; --dim2:#5d687d;
+    --accent:#3ce0c3; --accent2:#5e8bff;
+    --warn:#f2b64d; --bad:#ff6d6d;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    min-height:100vh;color:var(--ink);font-family:var(--sans);
+    padding:26px 18px calc(40px + env(safe-area-inset-bottom));
+    background:
+      radial-gradient(1100px 640px at 85% -12%, rgba(60,224,195,.10), transparent 62%),
+      radial-gradient(900px 620px at -12% 108%, rgba(94,139,255,.09), transparent 60%),
+      var(--bg);
+  }
+  .wrap{max-width:1060px;margin:0 auto}
+
+  /* ---------- header ---------- */
+  header{display:flex;align-items:flex-end;justify-content:space-between;
+    gap:14px;margin-bottom:22px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:12px}
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);
+    box-shadow:0 0 0 0 rgba(60,224,195,.45);animation:pulse 2.4s infinite}
+  .dot.off{background:var(--bad);animation:none}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(60,224,195,.4)}
+    70%{box-shadow:0 0 0 11px rgba(60,224,195,0)}100%{box-shadow:0 0 0 0 rgba(60,224,195,0)}}
+  .host{font-family:var(--mono);font-size:26px;font-weight:650;letter-spacing:-.02em}
+  .sub{font-size:11px;letter-spacing:.16em;color:var(--dim2);
+    text-transform:uppercase;margin-top:3px}
+  .meta{text-align:right;font-size:12px;color:var(--dim);line-height:1.7}
+  .meta b{color:var(--ink);font-weight:600;font-family:var(--mono)}
+  .badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;
+    letter-spacing:.08em;border:1px solid var(--line-hi);color:var(--dim)}
+  .badge.stale{color:var(--bad);border-color:rgba(255,109,109,.4)}
+
+  /* ---------- alarm ---------- */
+  .alarm{display:none;margin-bottom:16px;padding:12px 16px;border-radius:14px;
+    background:linear-gradient(90deg,rgba(255,109,109,.16),rgba(242,182,77,.13));
+    border:1px solid rgba(255,109,109,.32);color:#ffd9d9;font-size:13.5px;
+    font-family:var(--mono);letter-spacing:.02em}
+  .alarm.on{display:block}
+
+  /* ---------- grid ---------- */
+  .grid{display:grid;gap:16px;grid-template-columns:repeat(12,1fr)}
+  .card{grid-column:span 12;border-radius:18px;border:1px solid var(--line);
+    background:linear-gradient(180deg,var(--card-hi),var(--card-lo));
+    box-shadow:0 14px 34px rgba(0,0,0,.34);padding:20px 22px;
+    transition:border-color .25s}
+  @media(hover:hover){.card:hover{border-color:var(--line-hi)}}
+  @media(min-width:880px){
+    .plan{grid-column:span 12}
+    .cpu,.mem{grid-column:span 6}
+    .procs{grid-column:span 12}
+  }
+  .label{font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--dim2);margin-bottom:14px}
+
+  /* ---------- plan rings ---------- */
+  .rings{display:flex;align-items:center;justify-content:space-around;
+    gap:18px;flex-wrap:wrap}
+  .ringbox{display:flex;flex-direction:column;align-items:center;gap:10px;min-width:150px}
+  .ring{position:relative;width:132px;height:132px}
+  .ring svg{transform:rotate(-90deg);display:block}
+  .ring .track{stroke:rgba(255,255,255,.07)}
+  .ring .bar{stroke-linecap:round;transition:stroke-dashoffset .7s cubic-bezier(.3,.8,.3,1),
+    stroke .3s}
+  .ring .center{position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:2px}
+  .ring .pct{font-family:var(--mono);font-size:30px;font-weight:680;
+    font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .ring .unit{font-size:11px;color:var(--dim2);letter-spacing:.12em}
+  .ringcap{font-size:13px;color:var(--dim);text-align:center;line-height:1.5}
+  .ringcap b{color:var(--ink);font-weight:600}
+  .planlevel{margin-left:auto;align-self:flex-start;font-family:var(--mono);
+    font-size:12px;letter-spacing:.1em;color:var(--accent);
+    border:1px solid rgba(60,224,195,.35);padding:3px 11px;border-radius:999px}
+  .planhead{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+
+  /* ---------- gauges ---------- */
+  .bignum{font-family:var(--mono);font-size:46px;font-weight:660;
+    font-variant-numeric:tabular-nums;letter-spacing:-.03em;line-height:1}
+  .bignum small{font-size:22px;color:var(--dim);font-weight:500;margin-left:2px}
+  .track{height:8px;border-radius:999px;background:rgba(255,255,255,.07);
+    overflow:hidden;margin:16px 0 10px}
+  .fill{height:100%;border-radius:999px;width:0%;
+    background:linear-gradient(90deg,var(--accent2),var(--accent));
+    transition:width .7s cubic-bezier(.3,.8,.3,1),background .3s}
+  .fill.warn{background:linear-gradient(90deg,#e8a63c,var(--warn))}
+  .fill.bad{background:linear-gradient(90deg,#e35555,var(--bad))}
+  .foot{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;
+    font-size:12.5px;color:var(--dim);font-family:var(--mono)}
+
+  /* ---------- process list ---------- */
+  .rows{display:flex;flex-direction:column}
+  .row{display:grid;grid-template-columns:26px minmax(0,1fr) auto auto;
+    align-items:center;gap:10px;padding:9px 0;
+    border-bottom:1px solid rgba(255,255,255,.05)}
+  .row:last-child{border-bottom:none}
+  .rank{font-family:var(--mono);font-size:13px;color:var(--dim2)}
+  .pname{font-family:var(--mono);font-size:14.5px;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  .pbar{position:relative;height:5px;border-radius:999px;
+    background:rgba(255,255,255,.06);margin-top:6px;overflow:hidden}
+  .pbar i{position:absolute;inset:0;width:0%;border-radius:999px;
+    background:linear-gradient(90deg,rgba(94,139,255,.75),rgba(60,224,195,.85));
+    transition:width .7s cubic-bezier(.3,.8,.3,1)}
+  .pcpu{font-family:var(--mono);font-size:13.5px;color:var(--dim);
+    font-variant-numeric:tabular-nums;text-align:right}
+  .pmem{font-family:var(--mono);font-size:14px;font-weight:600;
+    font-variant-numeric:tabular-nums;text-align:right;min-width:64px}
+  .empty{color:var(--dim2);font-size:13px;padding:8px 0}
+
+  footer{margin-top:22px;text-align:center;font-size:11.5px;color:var(--dim2);
+    letter-spacing:.06em}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <span class="dot" id="dot"></span>
+      <div>
+        <div class="host" id="host">—</div>
+        <div class="sub">host resource monitor</div>
+      </div>
+    </div>
+    <div class="meta">
+      <div>更新于 <b id="updated">—</b></div>
+      <div style="margin-top:4px"><span class="badge" id="srcbadge">—</span></div>
+    </div>
+  </header>
+
+  <div class="alarm" id="alarm"></div>
+
+  <div class="grid">
+    <section class="card plan" id="plancard">
+      <div class="planhead">
+        <div class="label" style="margin:0">GLM Coding Plan · 用量</div>
+        <span class="planlevel" id="planlevel">—</span>
+      </div>
+      <div class="rings">
+        <div class="ringbox">
+          <div class="ring">
+            <svg width="132" height="132" viewBox="0 0 132 132">
+              <defs>
+                <linearGradient id="g5" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stop-color="#5e8bff"/>
+                  <stop offset="1" stop-color="#3ce0c3"/>
+                </linearGradient>
+              </defs>
+              <circle class="track" cx="66" cy="66" r="56" fill="none" stroke-width="11"/>
+              <circle class="bar" id="bar5" cx="66" cy="66" r="56" fill="none"
+                stroke="url(#g5)" stroke-width="11" stroke-dasharray="351.9"
+                stroke-dashoffset="351.9"/>
+            </svg>
+            <div class="center">
+              <div class="pct" id="pct5">–</div>
+              <div class="unit">已用</div>
+            </div>
+          </div>
+          <div class="ringcap"><b>5 小时窗口</b><br><span id="cap5">—</span></div>
+        </div>
+        <div class="ringbox">
+          <div class="ring">
+            <svg width="132" height="132" viewBox="0 0 132 132">
+              <defs>
+                <linearGradient id="gw" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stop-color="#f2b64d"/>
+                  <stop offset="1" stop-color="#ff8a5c"/>
+                </linearGradient>
+              </defs>
+              <circle class="track" cx="66" cy="66" r="56" fill="none" stroke-width="11"/>
+              <circle class="bar" id="barW" cx="66" cy="66" r="56" fill="none"
+                stroke="url(#gw)" stroke-width="11" stroke-dasharray="351.9"
+                stroke-dashoffset="351.9"/>
+            </svg>
+            <div class="center">
+              <div class="pct" id="pctW">–</div>
+              <div class="unit">已用</div>
+            </div>
+          </div>
+          <div class="ringcap"><b>本周窗口</b><br><span id="capW">—</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card cpu">
+      <div class="label">CPU</div>
+      <div class="bignum"><span id="cpuPct">–</span><small>%</small></div>
+      <div class="track"><div class="fill" id="cpuFill"></div></div>
+      <div class="foot">
+        <span id="cpuLoad">—</span>
+        <span id="cpuTemp"></span>
+      </div>
+    </section>
+
+    <section class="card mem">
+      <div class="label">内存</div>
+      <div class="bignum"><span id="memPct">–</span><small>%</small></div>
+      <div class="track"><div class="fill" id="memFill"></div></div>
+      <div class="foot">
+        <span id="memUsed">—</span>
+        <span id="memSwap">—</span>
+      </div>
+    </section>
+
+    <section class="card procs">
+      <div class="label">TOP 10 · 内存进程</div>
+      <div class="rows" id="rows"><div class="empty">加载中…</div></div>
+    </section>
+  </div>
+
+  <footer id="foot">—</footer>
+</div>
+
+<script>
+(function(){
+  var REFRESH = __REFRESH__ * 1000;
+  var CIRC = 351.9;                 // 2πr, r=56
+  var $ = function(id){ return document.getElementById(id); };
+
+  function setRing(barEl, pctEl, pct){
+    pct = Math.max(0, Math.min(100, pct));
+    barEl.style.strokeDashoffset = (CIRC * (1 - pct / 100)).toFixed(1);
+    pctEl.textContent = pct + '%';
+  }
+  function gaugeColor(pct){
+    return pct >= 95 ? 'bad' : (pct >= 85 ? 'warn' : '');
+  }
+  function fmtGB(g){ return (g >= 100 ? g.toFixed(0) : g.toFixed(1)) + 'G'; }
+  function fmtMem(mb){
+    return mb >= 1024 ? (mb / 1024).toFixed(1) + 'G' : Math.round(mb) + 'M';
+  }
+  function fmtLoad(v){ return v == null ? '–' : Number(v).toFixed(2); }
+  function hoursUntil(ms){
+    if (!ms) return '—';
+    var h = Math.round((ms - Date.now()) / 3600000);
+    if (h <= 0) return '即将重置';
+    return h >= 48 ? Math.round(h / 24) + ' 天后重置' : h + ' 小时后重置';
+  }
+
+  function render(d){
+    var live = d.live !== false;
+    $('dot').className = 'dot' + (live ? '' : ' off');
+    $('host').textContent = d.host || '—';
+    $('updated').textContent = d.updatedAt || '—';
+    var sb = $('srcbadge');
+    sb.textContent = (d.remote ? d.remote + ' · ' : '') +
+      (d.source || '?').toUpperCase() + (live ? '' : ' · STALE');
+    sb.className = 'badge' + (live ? '' : ' stale');
+
+    var alarms = (d.alarms || []).slice();
+    if (d.error) alarms.push('ERR ' + d.error);
+    var al = $('alarm');
+    if (alarms.length){ al.textContent = alarms.join('　·　'); al.classList.add('on'); }
+    else { al.classList.remove('on'); }
+
+    // plan rings
+    var z = d.zcode || null;
+    if (z && z.tokens5hPct != null){
+      var p5 = z.tokens5hPct, pw = z.tokensWeekPct != null ? z.tokensWeekPct : 0;
+      setRing($('bar5'), $('pct5'), p5);
+      setRing($('barW'), $('pctW'), pw);
+      $('planlevel').textContent = (z.level || '?').toUpperCase();
+      var req = (z.reqs5hUsed != null && z.reqs5hTotal)
+        ? ' · ' + z.reqs5hUsed + '/' + z.reqs5hTotal + ' 次请求' : '';
+      $('cap5').textContent = hoursUntil(z.reset5h) + req;
+      $('capW').textContent = hoursUntil(z.resetWeek);
+      $('plancard').style.display = '';
+    } else {
+      $('plancard').style.display = 'none';
+    }
+
+    // cpu
+    var c = d.cpu || {};
+    var cp = Math.round(c.pct || 0);
+    $('cpuPct').textContent = cp;
+    var cf = $('cpuFill');
+    cf.style.width = cp + '%'; cf.className = 'fill ' + gaugeColor(cp);
+    $('cpuLoad').textContent = 'LOAD ' + fmtLoad(c.load1) +
+      ' / ' + fmtLoad(c.load5) + ' / ' + fmtLoad(c.load15);
+    $('cpuTemp').textContent = c.tempC != null
+      ? (c.n || '?') + ' 核 · ' + Math.round(c.tempC) + '°C'
+      : (c.n ? c.n + ' 核' : '');
+
+    // mem
+    var m = d.mem || {};
+    var mp = Math.round(m.pct || 0);
+    $('memPct').textContent = mp;
+    var mf = $('memFill');
+    mf.style.width = mp + '%'; mf.className = 'fill ' + gaugeColor(mp);
+    $('memUsed').textContent = fmtGB(m.usedGB || 0) + ' / ' + fmtGB(m.totalGB || 0);
+    $('memSwap').textContent = (m.swapTotalGB > 0)
+      ? 'SWAP ' + (m.swapUsedGB || 0).toFixed(1) + '/' + m.swapTotalGB.toFixed(1) + 'G'
+      : '';
+
+    // procs
+    var procs = d.procs || [];
+    var rows = $('rows');
+    if (!procs.length){
+      rows.innerHTML = '<div class="empty">无进程数据</div>';
+    } else {
+      var maxmem = Math.max.apply(null, procs.map(function(p){ return p.memMB || 0; })) || 1;
+      var frag = document.createDocumentFragment();
+      procs.slice(0, 10).forEach(function(p, i){
+        var row = document.createElement('div'); row.className = 'row';
+        var rank = document.createElement('div'); rank.className = 'rank';
+        rank.textContent = i + 1;
+        var mid = document.createElement('div'); mid.style.minWidth = '0';
+        var nm = document.createElement('div'); nm.className = 'pname';
+        nm.textContent = p.name || '?'; nm.title = (p.name || '') + '  (pid ' + (p.pid || '?') + ')';
+        var bar = document.createElement('div'); bar.className = 'pbar';
+        var fill = document.createElement('i');
+        fill.style.width = Math.round((p.memMB || 0) / maxmem * 100) + '%';
+        bar.appendChild(fill); mid.appendChild(nm); mid.appendChild(bar);
+        var cpu = document.createElement('div'); cpu.className = 'pcpu';
+        cpu.textContent = (p.cpu != null ? p.cpu : '–') + '%';
+        var mem = document.createElement('div'); mem.className = 'pmem';
+        mem.textContent = fmtMem(p.memMB || 0);
+        row.appendChild(rank); row.appendChild(mid);
+        row.appendChild(cpu); row.appendChild(mem);
+        frag.appendChild(row);
+      });
+      rows.innerHTML = ''; rows.appendChild(frag);
+    }
+
+    $('foot').textContent = '运行 ' + (d.uptime || '?') +
+      ' · 后端 ' + (d.backend || '?') + ' · 每 ' + (REFRESH / 1000) + ' 秒自动刷新';
+  }
+
+  function offline(){
+    $('dot').className = 'dot off';
+    var sb = $('srcbadge');
+    sb.textContent = '连接中断'; sb.className = 'badge stale';
+  }
+
+  function tick(){
+    fetch('/status.json?ts=' + Date.now(), {cache: 'no-store'})
+      .then(function(r){ if (!r.ok) throw 0; return r.json(); })
+      .then(render).catch(offline);
+  }
+  tick();
+  setInterval(tick, REFRESH);
+})();
+</script>
+</body>
+</html>

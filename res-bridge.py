@@ -228,6 +228,23 @@ class Handler(BaseHTTPRequestHandler):
                     % (refresh, n, q))
             self._send(200, None, raw=html.encode("utf-8"),
                        ctype="text/html; charset=utf-8", nocache=True)
+        elif u.path == "/h5":
+            # modern web dashboard for phones / desktops: a real HTML page
+            # that polls /status.json and renders cards client-side
+            qs = parse_qs(u.query)
+            try:
+                refresh = max(2, min(int((qs.get("refresh") or ["5"])[0]),
+                                     3600))
+            except ValueError:
+                refresh = 5
+            try:
+                with open(os.path.join(DATA_DIR, "dashboard.html"),
+                          encoding="utf-8") as f:
+                    html = f.read().replace("__REFRESH__", str(refresh))
+            except OSError as e:
+                return self._send(500, {"error": "dashboard.html: %s" % e})
+            self._send(200, None, raw=html.encode("utf-8"),
+                       ctype="text/html; charset=utf-8", nocache=True)
         elif u.path == "/health":
             self._send(200, {"ok": True,
                               "backend": (_snap.get("snap") or {}).get("backend"),
